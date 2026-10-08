@@ -1,264 +1,234 @@
 # Bulk Certificate Generator
 
-A production-ready backend API for generating PDF certificates for large numbers of recipients. Built with FastAPI, Celery, Redis, and PostgreSQL.
+A production-ready, scalable backend API for generating and distributing beautiful PDF certificates for large numbers of recipients. Built with **FastAPI**, **PostgreSQL**, and **ReportLab**.
 
 ---
 
-## Tech Stack
+## 🌐 Live Deployment & Links
 
-| Layer | Technology |
-|---|---|
-| API Framework | FastAPI |
-| Background Workers | Celery |
-| Message Broker / Result Backend | Redis |
-| Database | PostgreSQL (SQLite for local/tests) |
-| PDF Generation | ReportLab |
-| Deployment | Render |
+- **Live Base API:** [https://bulk-cert-api.onrender.com](https://bulk-cert-api.onrender.com)
+- **Interactive Swagger Docs:** [https://bulk-cert-api.onrender.com/docs](https://bulk-cert-api.onrender.com/docs)
+- **ReDoc Documentation:** [https://bulk-cert-api.onrender.com/redoc](https://bulk-cert-api.onrender.com/redoc)
+- **GitHub Repository:** [https://github.com/Gagan004-coder/bulk-certificate-generator](https://github.com/Gagan004-coder/bulk-certificate-generator)
 
 ---
 
-## Project Structure
+## ⚡ Tech Stack
+
+| Layer | Technology | Description |
+|---|---|---|
+| **Framework** | FastAPI | High-performance asynchronous REST API framework |
+| **Async Processing** | FastAPI `BackgroundTasks` | Non-blocking background certificate generation |
+| **Database & ORM** | PostgreSQL & SQLAlchemy 2.0 | Relational database storing job metadata & PDF byte blobs (`BYTEA`) |
+| **PDF Engine** | ReportLab | Programmatic generation of vector PDF certificates |
+| **Validation** | Pydantic v2 | Strict schema validation and email formatting |
+| **Testing** | Pytest & HTTPX TestClient | Comprehensive test suite (30/30 tests passing) |
+| **Deployment** | Render (Free Tier Blueprint) | Automated web + managed PostgreSQL cloud deployment |
+
+---
+
+## 📂 Project Structure
 
 ```
 .
 ├── app/
 │   ├── __init__.py
-│   ├── config.py               # Env-based configuration
-│   ├── database.py             # SQLAlchemy engine + session
-│   ├── models.py               # ORM models: Job, Certificate
-│   ├── schemas.py              # Pydantic request/response schemas
-│   ├── certificate_generator.py # ReportLab PDF generation
-│   ├── celery_app.py           # Celery app instance + config
-│   ├── tasks.py                # Celery tasks
-│   ├── routes.py               # FastAPI route handlers
-│   └── main.py                 # App entrypoint
+│   ├── config.py                 # Environment-based configuration
+│   ├── database.py               # SQLAlchemy engine & session factory
+│   ├── models.py                 # ORM models (Job, Certificate, Enums)
+│   ├── schemas.py                # Pydantic request/response models
+│   ├── certificate_generator.py  # ReportLab PDF design and rendering
+│   ├── tasks.py                  # Background job processing logic
+│   ├── routes.py                 # API endpoints
+│   └── main.py                   # FastAPI application entrypoint
 ├── tests/
-│   ├── conftest.py
-│   ├── test_jobs.py
-│   ├── test_validation.py
-│   ├── test_certificate_generator.py
-│   ├── test_tasks.py
-│   ├── test_status.py
-│   └── test_download.py
-├── requirements.txt
-├── render.yaml
-├── .env.example
+│   ├── conftest.py               # Test fixtures & SQLite testing DB
+│   ├── test_jobs.py              # Job creation and retrieval tests
+│   ├── test_validation.py        # Input validation & bad payload tests
+│   ├── test_certificate_generator.py # PDF generation unit tests
+│   ├── test_tasks.py             # Background task execution tests
+│   ├── test_status.py            # Status polling and counters tests
+│   └── test_download.py          # PDF streaming & download tests
+├── requirements.txt              # Production and test dependencies
+├── render.yaml                   # Infrastructure-as-code deployment blueprint
+├── .env.example                  # Environment configuration template
 └── README.md
 ```
 
 ---
 
-## Setup
+## 🚀 Getting Started Locally
 
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL (or use SQLite for local dev)
-- Redis
+- SQLite (included with Python) or PostgreSQL
 
-### Install Dependencies
+### 1. Clone & Install Dependencies
 
 ```bash
+git clone https://github.com/Gagan004-coder/bulk-certificate-generator.git
+cd bulk-certificate-generator
 pip install -r requirements.txt
 ```
 
-### Configure Environment
+### 2. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
-
-```
-DATABASE_URL=postgresql://user:password@localhost:5432/certdb
-REDIS_URL=redis://localhost:6379/0
-CERTIFICATES_DIR=certificates
-SECRET_KEY=your-secret-key-here
-```
-
-For quick local testing without PostgreSQL, use SQLite:
-
-```
+Default `.env` for local development uses SQLite:
+```env
 DATABASE_URL=sqlite:///./certs.db
 ```
 
----
-
-## Running the Application
-
-You need **two** processes running simultaneously.
-
-### Terminal 1 — API Server
+### 3. Start the Server
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### Terminal 2 — Celery Worker
-
-```bash
-celery -A app.tasks worker --loglevel=info
-```
-
-The API will be available at `http://localhost:8000`.
-
-Interactive docs: `http://localhost:8000/docs`
+- API Base: `http://localhost:8000`
+- Interactive Docs: `http://localhost:8000/docs`
 
 ---
 
-## Running Tests
+## 🧪 Running Tests
 
-Tests use SQLite and do not require Redis or a running Celery worker (tasks are tested directly with mocks).
+Execute the full suite of 30 unit and integration tests:
 
 ```bash
 pytest tests/ -v
 ```
 
+All tests run against an in-memory/isolated SQLite test database with complete endpoint, validation, task processing, and PDF generation coverage.
+
 ---
 
-## API Reference
+## 📖 API Reference
 
-### Create a Certificate Generation Job
-
+### 1. Health Check
+```http
+GET /health
 ```
+**Response (200 OK):**
+```json
+{
+  "status": "healthy"
+}
+```
+
+---
+
+### 2. Submit Certificate Generation Job
+```http
 POST /api/v1/jobs
 ```
 
-**Request body:**
-
+**Request Body:**
 ```json
 {
-  "event_name": "Python Bootcamp 2024",
-  "issued_by": "Tech Academy",
+  "event_name": "Full Stack Engineering Bootcamp 2026",
+  "issued_by": "Global Tech Academy",
   "recipients": [
     {
-      "name": "Alice Smith",
-      "email": "alice@example.com",
-      "completion_date": "2024-05-01"
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com",
+      "completion_date": "2026-05-15"
     },
     {
-      "name": "Bob Jones",
-      "email": "bob@example.com",
-      "completion_date": "2024-05-01"
+      "name": "John Smith",
+      "email": "john.smith@example.com",
+      "completion_date": "2026-05-15"
     }
   ]
 }
 ```
 
 **Response (202 Accepted):**
-
 ```json
 {
-  "id": "uuid",
-  "event_name": "Python Bootcamp 2024",
-  "issued_by": "Tech Academy",
+  "id": "e93db940-0853-4712-9cbb-c1550cbb64b5",
+  "event_name": "Full Stack Engineering Bootcamp 2026",
+  "issued_by": "Global Tech Academy",
   "status": "pending",
   "total": 2,
   "succeeded": 0,
   "failed": 0,
-  "created_at": "...",
-  "updated_at": "..."
+  "created_at": "2026-10-08T01:00:00Z",
+  "updated_at": "2026-10-08T01:00:00Z"
 }
 ```
 
 ---
 
-### Check Job Status
-
-```
+### 3. Track Job Status
+```http
 GET /api/v1/jobs/{job_id}
 ```
 
-Returns the job with its full list of certificates and their individual statuses.
-
-**Job status values:** `pending` → `processing` → `completed` | `failed`
-
-**Certificate status values:** `pending` → `success` | `failed`
+**Response (200 OK):**
+```json
+{
+  "id": "e93db940-0853-4712-9cbb-c1550cbb64b5",
+  "event_name": "Full Stack Engineering Bootcamp 2026",
+  "issued_by": "Global Tech Academy",
+  "status": "completed",
+  "total": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "created_at": "2026-10-08T01:00:00Z",
+  "updated_at": "2026-10-08T01:00:05Z",
+  "certificates": [
+    {
+      "id": "c1a2b3c4-0000-0000-0000-000000000001",
+      "recipient_name": "Jane Doe",
+      "recipient_email": "jane.doe@example.com",
+      "completion_date": "2026-05-15",
+      "status": "success",
+      "download_url": "/api/v1/certificates/c1a2b3c4-0000-0000-0000-000000000001/download",
+      "error_message": null
+    }
+  ]
+}
+```
 
 ---
 
-### List All Jobs
-
-```
+### 4. List All Jobs
+```http
 GET /api/v1/jobs?skip=0&limit=20
 ```
 
 ---
 
-### List Certificates for a Job
+### 5. Download Certificate PDF
+```http
+GET /api/v1/certificates/{certificate_id}/download
+```
 
-```
-GET /api/v1/jobs/{job_id}/certificates
-```
+- Returns `200 OK` with binary `application/pdf` stream and `Content-Disposition: attachment; filename="certificate_<id>.pdf"`.
+- Returns `409 Conflict` if the certificate is still pending or generation failed.
+- Returns `404 Not Found` if the certificate ID does not exist.
 
 ---
 
-### Download a Certificate PDF
+## 🏛️ Architectural & Design Decisions
 
-```
-GET /api/v1/certificates/{cert_id}/download
-```
+### 1. Asynchronous Background Generation
+- Immediate response with `202 Accepted` returning the unique `job_id`.
+- Long-running PDF rendering is offloaded to background task execution, keeping request/response loops lightweight and responsive.
 
-Returns the PDF file directly (`application/pdf`).
+### 2. Failure Isolation
+- Each recipient's certificate generation is wrapped in an isolated exception handler.
+- If one recipient fails (e.g. malformed data), the specific certificate is marked `failed` with its error message recorded, while all other valid certificates are generated successfully.
+- The parent job transitions to `completed` once all recipients are processed.
 
-Returns `409` if the certificate is not yet ready, `404` if it does not exist.
+### 3. Direct Binary Storage in PostgreSQL (`BYTEA`)
+- Generated PDF bytes are stored directly in the database (`BYTEA` column).
+- Eliminates the need for local filesystem persistent disks or expensive external S3 buckets, allowing reliable, zero-config deployment on free tiers like Render.
 
----
-
-## Deployment on Render
-
-The `render.yaml` blueprint provisions everything automatically:
-
-1. **Web service** — FastAPI API
-2. **Worker service** — Celery worker
-3. **PostgreSQL database**
-4. **Redis instance**
-5. **Persistent disk** — for storing generated PDFs
-
-### Steps
-
-1. Push this repository to GitHub.
-2. Go to [render.com](https://render.com) → **New** → **Blueprint**.
-3. Connect your GitHub repository.
-4. Render detects `render.yaml` and creates all services.
-5. Wait for the build to complete.
-6. The API URL will be shown in the Render dashboard.
-
----
-
-## Design Decisions
-
-### Background Processing with Celery
-
-Generation is handled asynchronously via Celery workers backed by Redis. The API returns `202 Accepted` immediately with the job ID, and the client polls `GET /api/v1/jobs/{job_id}` to track progress.
-
-**Why Celery over `ThreadPoolExecutor`?**
-
-- Celery workers are separate processes — they survive API restarts and can be scaled independently.
-- On Render, the web service and worker are separate services, which is the industry-standard pattern.
-- `task_acks_late=True` ensures tasks are not lost if a worker crashes mid-generation.
-- This approach scales horizontally: add more worker instances to handle higher load.
-
-### Isolated Certificate Failures
-
-Each certificate is processed in a try/except block. A failure on one certificate (e.g., corrupted data, disk error) records the error message on that certificate row and increments the `failed` counter, but does not stop the rest of the job. The job always reaches a terminal state (`completed`).
-
-### PDF Generation
-
-ReportLab is used to generate landscape A4 PDFs with a professional design: gold double-border frame, decorative corner accents, styled typography using Times-Bold/Italic, and a footer with the certificate ID and recipient email for traceability.
-
-### Database Design
-
-Two tables: `jobs` (one per request) and `certificates` (one per recipient). This allows:
-- Per-certificate status tracking
-- Efficient queries for both bulk status and individual downloads
-- Cascade deletes (deleting a job removes its certificates)
-
-### Validation
-
-Pydantic v2 schemas validate all inputs at the request boundary:
-- `EmailStr` for email format
-- `date` type for completion date
-- Non-blank string validators for name, event name, issued_by
-- At-least-one validator for recipients list
+### 4. Professional Certificate Aesthetic
+- Generated dynamically via ReportLab with A4 Landscape dimensions.
+- Features double gold borders, ornate corner ornaments, clean serif typography, issue metadata, and a unique tracking ID at the bottom for authenticity.
