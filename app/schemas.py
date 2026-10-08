@@ -43,7 +43,6 @@ class CertificateOut(BaseModel):
     recipient_email: str
     completion_date: str
     status: CertificateStatus
-    file_path: str | None
     error_message: str | None
 
     model_config = {"from_attributes": True}

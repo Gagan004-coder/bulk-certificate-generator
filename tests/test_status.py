@@ -1,13 +1,13 @@
-import os
-import tempfile
 import pytest
 from unittest.mock import patch
-from tests.conftest import VALID_PAYLOAD
+from tests.conftest import VALID_PAYLOAD, TestingSessionLocal
+from app.models import Job, Certificate, JobStatus, CertificateStatus
+
+FAKE_PDF = b"%PDF-1.4 fake"
 
 
 def test_job_status_pending_after_creation(client):
-    with patch("app.routes.process_job") as mock_task:
-        mock_task.delay = lambda job_id: None
+    with patch("app.routes.process_job"):
         resp = client.post("/api/v1/jobs", json=VALID_PAYLOAD)
     job_id = resp.json()["id"]
 
@@ -19,8 +19,7 @@ def test_job_status_pending_after_creation(client):
 
 
 def test_job_status_includes_certificates(client):
-    with patch("app.routes.process_job") as mock_task:
-        mock_task.delay = lambda job_id: None
+    with patch("app.routes.process_job"):
         resp = client.post("/api/v1/jobs", json=VALID_PAYLOAD)
     job_id = resp.json()["id"]
 
@@ -31,8 +30,7 @@ def test_job_status_includes_certificates(client):
 
 
 def test_job_status_certificate_fields(client):
-    with patch("app.routes.process_job") as mock_task:
-        mock_task.delay = lambda job_id: None
+    with patch("app.routes.process_job"):
         resp = client.post("/api/v1/jobs", json=VALID_PAYLOAD)
     job_id = resp.json()["id"]
 
@@ -46,8 +44,7 @@ def test_job_status_certificate_fields(client):
 
 
 def test_get_certificates_for_job(client):
-    with patch("app.routes.process_job") as mock_task:
-        mock_task.delay = lambda job_id: None
+    with patch("app.routes.process_job"):
         resp = client.post("/api/v1/jobs", json=VALID_PAYLOAD)
     job_id = resp.json()["id"]
 
@@ -56,21 +53,17 @@ def test_get_certificates_for_job(client):
     assert len(certs_resp.json()) == 2
 
 
-def test_job_counters_after_processing(client, db):
-    with patch("app.routes.process_job") as mock_task:
-        mock_task.delay = lambda job_id: None
+def test_job_counters_after_processing(client):
+    with patch("app.routes.process_job"):
         resp = client.post("/api/v1/jobs", json=VALID_PAYLOAD)
     job_id = resp.json()["id"]
-
-    from app.models import Job, Certificate, JobStatus, CertificateStatus
-    from tests.conftest import TestingSessionLocal
 
     s = TestingSessionLocal()
     job = s.query(Job).filter(Job.id == job_id).first()
     certs = s.query(Certificate).filter(Certificate.job_id == job_id).all()
     for c in certs:
         c.status = CertificateStatus.success
-        c.file_path = "/fake/path.pdf"
+        c.file_data = FAKE_PDF
     job.status = JobStatus.completed
     job.succeeded = 2
     job.failed = 0

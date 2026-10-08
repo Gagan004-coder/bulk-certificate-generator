@@ -1,11 +1,9 @@
-from app.celery_app import celery_app
 from app.database import SessionLocal
 from app.models import Job, Certificate, JobStatus, CertificateStatus
-from app.certificate_generator import generate_certificate_pdf
+from app.certificate_generator import generate_certificate_pdf_bytes
 
 
-@celery_app.task(bind=True, name="tasks.process_job")
-def process_job(self, job_id: str):
+def process_job(job_id: str) -> None:
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
@@ -22,8 +20,7 @@ def process_job(self, job_id: str):
 
         for cert in certificates:
             try:
-                file_path = generate_certificate_pdf(
-                    job_id=job_id,
+                pdf_bytes = generate_certificate_pdf_bytes(
                     cert_id=cert.id,
                     recipient_name=cert.recipient_name,
                     recipient_email=cert.recipient_email,
@@ -32,7 +29,7 @@ def process_job(self, job_id: str):
                     completion_date=cert.completion_date,
                 )
                 cert.status = CertificateStatus.success
-                cert.file_path = file_path
+                cert.file_data = pdf_bytes
                 succeeded += 1
             except Exception as exc:
                 cert.status = CertificateStatus.failed

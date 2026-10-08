@@ -1,10 +1,10 @@
 import pytest
-import tempfile
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from app.tasks import process_job
 from app.models import Job, Certificate, JobStatus, CertificateStatus
-from tests.conftest import TestingSessionLocal, VALID_PAYLOAD
+from tests.conftest import TestingSessionLocal
+
+FAKE_PDF = b"%PDF-1.4 fake content"
 
 
 def make_job(recipients=None, event_name="Test Event", issued_by="Org"):
@@ -45,12 +45,11 @@ def get_certs(job_id):
     return certs
 
 
-def test_process_job_completes_successfully(tmp_path):
+def test_process_job_completes_successfully():
     job_id = make_job()
 
     with patch("app.tasks.SessionLocal", side_effect=TestingSessionLocal), \
-         patch("app.tasks.generate_certificate_pdf") as mock_gen:
-        mock_gen.return_value = str(tmp_path / "fake.pdf")
+         patch("app.tasks.generate_certificate_pdf_bytes", return_value=FAKE_PDF):
         process_job(job_id)
 
     job = get_job(job_id)
@@ -59,19 +58,18 @@ def test_process_job_completes_successfully(tmp_path):
     assert job.failed == 0
 
 
-def test_process_job_marks_as_completed(tmp_path):
+def test_process_job_marks_as_completed():
     job_id = make_job()
 
     with patch("app.tasks.SessionLocal", side_effect=TestingSessionLocal), \
-         patch("app.tasks.generate_certificate_pdf") as mock_gen:
-        mock_gen.return_value = str(tmp_path / "fake.pdf")
+         patch("app.tasks.generate_certificate_pdf_bytes", return_value=FAKE_PDF):
         process_job(job_id)
 
     job = get_job(job_id)
     assert job.status == JobStatus.completed
 
 
-def test_process_job_one_failure_does_not_block_others(tmp_path):
+def test_process_job_one_failure_does_not_block_others():
     job_id = make_job(recipients=[
         ("Alice", "alice@example.com", "2024-05-01"),
         ("Bob", "bob@example.com", "2024-05-01"),
@@ -80,15 +78,15 @@ def test_process_job_one_failure_does_not_block_others(tmp_path):
 
     call_count = 0
 
-    def side_effect(*args, **kwargs):
+    def side_effect(**kwargs):
         nonlocal call_count
         call_count += 1
         if call_count == 2:
             raise RuntimeError("Simulated generation failure")
-        return str(tmp_path / f"cert_{call_count}.pdf")
+        return FAKE_PDF
 
     with patch("app.tasks.SessionLocal", side_effect=TestingSessionLocal), \
-         patch("app.tasks.generate_certificate_pdf", side_effect=side_effect):
+         patch("app.tasks.generate_certificate_pdf_bytes", side_effect=side_effect):
         process_job(job_id)
 
     job = get_job(job_id)
@@ -102,11 +100,11 @@ def test_process_job_one_failure_does_not_block_others(tmp_path):
     assert "Simulated generation failure" in failed_certs[0].error_message
 
 
-def test_process_job_records_error_message_on_failure(tmp_path):
+def test_process_job_records_error_message_on_failure():
     job_id = make_job(recipients=[("Alice", "alice@example.com", "2024-05-01")])
 
     with patch("app.tasks.SessionLocal", side_effect=TestingSessionLocal), \
-         patch("app.tasks.generate_certificate_pdf", side_effect=Exception("disk full")):
+         patch("app.tasks.generate_certificate_pdf_bytes", side_effect=Exception("disk full")):
         process_job(job_id)
 
     certs = get_certs(job_id)
@@ -120,15 +118,12 @@ def test_process_job_nonexistent_job_id():
     assert result is None
 
 
-def test_process_job_all_certificates_get_file_path(tmp_path):
-    job_id = make_job()
+def test_process_job_stores_pdf_bytes():
+    job_id = make_job(recipients=[("Alice", "alice@example.com", "2024-05-01")])
 
     with patch("app.tasks.SessionLocal", side_effect=TestingSessionLocal), \
-         patch("app.tasks.generate_certificate_pdf") as mock_gen:
-        mock_gen.side_effect = lambda **kwargs: str(tmp_path / f"{kwargs['cert_id']}.pdf")
+         patch("app.tasks.generate_certificate_pdf_bytes", return_value=FAKE_PDF):
         process_job(job_id)
 
     certs = get_certs(job_id)
-    for cert in certs:
-        assert cert.status == CertificateStatus.success
-        assert cert.file_path is not None
+    assert certs[0].file_data == FAKE_PDF

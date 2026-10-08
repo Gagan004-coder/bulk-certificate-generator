@@ -1,14 +1,10 @@
 import os
 import pytest
-import tempfile
-from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 os.environ["DATABASE_URL"] = "sqlite:///./test_certs.db"
-os.environ["REDIS_URL"] = "redis://localhost:6379/1"
-os.environ["CERTIFICATES_DIR"] = tempfile.mkdtemp()
 
 from app.main import app
 from app.database import Base, get_db

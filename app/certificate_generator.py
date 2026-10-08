@@ -1,19 +1,8 @@
-import os
-import textwrap
-from pathlib import Path
+import io
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from reportlab.pdfgen import canvas
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.styles import ParagraphStyle
-from app.config import CERTIFICATES_DIR
-
-
-def _ensure_dir(path: str) -> None:
-    Path(path).mkdir(parents=True, exist_ok=True)
 
 
 def _draw_background(c: canvas.Canvas, width: float, height: float) -> None:
@@ -46,24 +35,20 @@ def _draw_decorative_corners(c: canvas.Canvas, width: float, height: float) -> N
         c.arc(cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2, 0, 360)
 
 
-def generate_certificate_pdf(
-    job_id: str,
+def generate_certificate_pdf_bytes(
     cert_id: str,
     recipient_name: str,
     recipient_email: str,
     event_name: str,
     issued_by: str,
     completion_date: str,
-) -> str:
-    _ensure_dir(CERTIFICATES_DIR)
-
-    file_name = f"{cert_id}.pdf"
-    file_path = os.path.join(CERTIFICATES_DIR, file_name)
+) -> bytes:
+    buffer = io.BytesIO()
 
     page_size = landscape(A4)
     width, height = page_size
 
-    c = canvas.Canvas(file_path, pagesize=page_size)
+    c = canvas.Canvas(buffer, pagesize=page_size)
 
     _draw_background(c, width, height)
     _draw_decorative_corners(c, width, height)
@@ -74,7 +59,7 @@ def generate_certificate_pdf(
 
     c.setFillColor(gold)
     c.setFont("Times-Bold", 11)
-    c.drawCentredString(width / 2, height - 2.8 * cm, "✦  CERTIFICATE OF COMPLETION  ✦")
+    c.drawCentredString(width / 2, height - 2.8 * cm, "\u2726  CERTIFICATE OF COMPLETION  \u2726")
 
     c.setFillColor(dark)
     c.setFont("Times-Bold", 42)
@@ -148,4 +133,5 @@ def generate_certificate_pdf(
     c.drawCentredString(width / 2, 1.5 * cm, f"Certificate ID: {cert_id}  |  {recipient_email}")
 
     c.save()
-    return file_path
+    buffer.seek(0)
+    return buffer.read()

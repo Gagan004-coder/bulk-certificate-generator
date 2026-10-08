@@ -1,7 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, DateTime, Enum, ForeignKey, Text
+from sqlalchemy import String, Integer, DateTime, Enum, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -48,7 +48,7 @@ class Certificate(Base):
     recipient_email: Mapped[str] = mapped_column(String(255))
     completion_date: Mapped[str] = mapped_column(String(50))
     status: Mapped[CertificateStatus] = mapped_column(Enum(CertificateStatus), default=CertificateStatus.pending)
-    file_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    file_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
