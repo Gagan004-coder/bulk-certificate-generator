@@ -43,3 +43,16 @@ def test_list_jobs(client):
 def test_get_job_not_found(client):
     resp = client.get("/api/v1/jobs/nonexistent-id")
     assert resp.status_code == 404
+
+
+def test_root_redirects_to_docs(client):
+    resp = client.get("/", follow_redirects=False)
+    assert resp.status_code in (307, 302, 308)
+    assert resp.headers["location"] == "/docs"
+
+
+def test_health_check(client):
+    resp = client.get("/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
